@@ -80,6 +80,9 @@ A ready-to-use workflow is included at `.github/workflows/normalize.yml`:
 - Triggers every hour (`cron: "0 * * * *"`).
 - Can be run manually via `workflow_dispatch`.
 - Builds the tool, runs it, and commits any changes to `export/` back to the repo.
+- Reads the config from the GitHub Actions variable `XRAY_SUBREFINER_CONFIG` when it is set.
+
+To use a repository or environment variable in GitHub, add `XRAY_SUBREFINER_CONFIG` in the repo or environment settings. It can contain either the YAML content itself or a file path that exists on the runner.
 
 ## Troubleshooting
 

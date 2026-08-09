@@ -20,6 +20,8 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+const configEnvVar = "XRAY_SUBREFINER_CONFIG"
+
 type Subscription struct {
 	Key string `yaml:"key"`
 	URL string `yaml:"url"`
@@ -51,12 +53,20 @@ func must(err error) {
 }
 
 func main() {
-	cfgPath := flag.String("config", "config.yaml", "path to config.yaml")
+	cfgPath := flag.String("config", "", "path to config.yaml")
 	outDir := flag.String("out", "export", "output directory")
 	timeout := flag.Duration("timeout", 20*time.Second, "HTTP client timeout")
 	flag.Parse()
 
-	cfg, err := loadConfig(*cfgPath)
+	var explicitConfig bool
+	flag.Visit(func(f *flag.Flag) {
+		if f.Name == "config" {
+			explicitConfig = true
+		}
+	})
+
+	configSource := resolveConfigSource(explicitConfig, *cfgPath, os.Getenv(configEnvVar))
+	cfg, err := loadConfig(configSource)
 	must(err)
 
 	client := &http.Client{Timeout: *timeout}
@@ -130,11 +140,38 @@ func main() {
 	}
 }
 
-func loadConfig(path string) (*Config, error) {
-	b, err := os.ReadFile(path)
-	if err != nil {
-		return nil, err
+func resolveConfigSource(explicitConfig bool, flagValue, envValue string) string {
+	flagValue = strings.TrimSpace(flagValue)
+	if explicitConfig && flagValue != "" {
+		return flagValue
 	}
+	if envValue != "" {
+		return envValue
+	}
+	if flagValue != "" {
+		return flagValue
+	}
+	return "config.yaml"
+}
+
+func loadConfig(source string) (*Config, error) {
+	source = strings.TrimSpace(source)
+	if source == "" {
+		source = "config.yaml"
+	}
+
+	if looksLikeFilePath(source) {
+		b, err := os.ReadFile(source)
+		if err != nil {
+			return nil, err
+		}
+		return parseConfig(b)
+	}
+
+	return parseConfig([]byte(source))
+}
+
+func parseConfig(b []byte) (*Config, error) {
 	var cfg Config
 	if err := yaml.Unmarshal(b, &cfg); err != nil {
 		return nil, err
@@ -146,6 +183,19 @@ func loadConfig(path string) (*Config, error) {
 		cfg.Lite.N = 100
 	}
 	return &cfg, nil
+}
+
+func looksLikeFilePath(source string) bool {
+	if strings.Contains(source, "\n") || strings.Contains(source, "\r") {
+		return false
+	}
+	if strings.Contains(source, "/") || strings.Contains(source, "\\") {
+		return true
+	}
+	if strings.HasPrefix(source, ".") || strings.HasSuffix(source, ".yaml") || strings.HasSuffix(source, ".yml") {
+		return true
+	}
+	return false
 }
 
 func fetch(client *http.Client, rawurl string) ([]byte, error) {
