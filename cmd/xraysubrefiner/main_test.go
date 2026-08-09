@@ -44,3 +44,9 @@ func TestLoadConfigReadsFilePath(t *testing.T) {
 		t.Fatalf("unexpected allowed schemes: %#v", cfg.AllowedSchemes)
 	}
 }
+
+func TestLoadConfigRejectsEmptySource(t *testing.T) {
+	if _, err := loadConfig(""); err == nil {
+		t.Fatal("loadConfig(\"\") expected an error")
+	}
+}

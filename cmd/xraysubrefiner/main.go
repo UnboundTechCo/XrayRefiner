@@ -148,27 +148,33 @@ func resolveConfigSource(explicitConfig bool, flagValue, envValue string) string
 	if envValue != "" {
 		return envValue
 	}
-	if flagValue != "" {
-		return flagValue
-	}
-	return "config.yaml"
+	return flagValue
 }
 
 func loadConfig(source string) (*Config, error) {
 	source = strings.TrimSpace(source)
 	if source == "" {
-		source = "config.yaml"
+		return nil, fmt.Errorf("config source is empty")
 	}
 
-	if looksLikeFilePath(source) {
+	if info, err := os.Stat(source); err == nil {
+		if info.IsDir() {
+			return nil, fmt.Errorf("config path %q is a directory", source)
+		}
 		b, err := os.ReadFile(source)
 		if err != nil {
 			return nil, err
 		}
 		return parseConfig(b)
+	} else if err != nil && !os.IsNotExist(err) {
+		return nil, err
 	}
 
-	return parseConfig([]byte(source))
+	if looksLikeInlineYAML(source) {
+		return parseConfig([]byte(source))
+	}
+
+	return nil, fmt.Errorf("config source %q not found", source)
 }
 
 func parseConfig(b []byte) (*Config, error) {
@@ -185,14 +191,14 @@ func parseConfig(b []byte) (*Config, error) {
 	return &cfg, nil
 }
 
-func looksLikeFilePath(source string) bool {
+func looksLikeInlineYAML(source string) bool {
 	if strings.Contains(source, "\n") || strings.Contains(source, "\r") {
-		return false
-	}
-	if strings.Contains(source, "/") || strings.Contains(source, "\\") {
 		return true
 	}
-	if strings.HasPrefix(source, ".") || strings.HasSuffix(source, ".yaml") || strings.HasSuffix(source, ".yml") {
+	if strings.Contains(source, ":") || strings.Contains(source, "{") || strings.Contains(source, "[") {
+		return true
+	}
+	if strings.HasPrefix(source, ".") || strings.Contains(source, "/") || strings.Contains(source, "\\") || strings.HasSuffix(source, ".yaml") || strings.HasSuffix(source, ".yml") {
 		return true
 	}
 	return false
