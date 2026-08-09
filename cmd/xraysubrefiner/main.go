@@ -157,6 +157,10 @@ func loadConfig(source string) (*Config, error) {
 		return nil, fmt.Errorf("config source is empty")
 	}
 
+	if looksLikeInlineYAML(source) {
+		return parseConfig([]byte(source))
+	}
+
 	if info, err := os.Stat(source); err == nil {
 		if info.IsDir() {
 			return nil, fmt.Errorf("config path %q is a directory", source)
@@ -168,10 +172,6 @@ func loadConfig(source string) (*Config, error) {
 		return parseConfig(b)
 	} else if err != nil && !os.IsNotExist(err) {
 		return nil, err
-	}
-
-	if looksLikeInlineYAML(source) {
-		return parseConfig([]byte(source))
 	}
 
 	return nil, fmt.Errorf("config source %q not found", source)
@@ -196,9 +196,6 @@ func looksLikeInlineYAML(source string) bool {
 		return true
 	}
 	if strings.Contains(source, ":") || strings.Contains(source, "{") || strings.Contains(source, "[") {
-		return true
-	}
-	if strings.HasPrefix(source, ".") || strings.Contains(source, "/") || strings.Contains(source, "\\") || strings.HasSuffix(source, ".yaml") || strings.HasSuffix(source, ".yml") {
 		return true
 	}
 	return false

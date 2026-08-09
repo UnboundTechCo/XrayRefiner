@@ -28,6 +28,18 @@ func TestLoadConfigParsesRawYAMLContent(t *testing.T) {
 	}
 }
 
+func TestLoadConfigParsesGitHubVariableStyleMultilineYAML(t *testing.T) {
+	raw := "allowed_schemes:\n  - vless\nsubscriptions:\n  - key: \"location/FR\"\n    url: \"https://example.com/subscription\"\n"
+
+	cfg, err := loadConfig(raw)
+	if err != nil {
+		t.Fatalf("loadConfig(multiline yaml) returned error: %v", err)
+	}
+	if len(cfg.Subscriptions) != 1 || cfg.Subscriptions[0].Key != "location/FR" {
+		t.Fatalf("unexpected subscriptions: %#v", cfg.Subscriptions)
+	}
+}
+
 func TestLoadConfigReadsFilePath(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "config.yaml")
